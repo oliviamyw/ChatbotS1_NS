@@ -105,15 +105,16 @@ st.markdown(
 # =========================
 # Identity
 # =========================
-identity_option = "With name and image"
-show_name = True
-show_picture = True
-CHATBOT_NAME = "Skyler"
+identity_option = "Without name and image"
+show_name = False
+show_picture = False
+CHATBOT_NAME = "Skyler"  # 이름 비노출이라도 내부 표기는 남겨둬도 OK
 CHATBOT_PICTURE = "https://i.imgur.com/4uLz4FZ.png"
-brand_type = "Start-up Brand"
+brand_type = "Mass-market Brand"
 
 def _chatbot_speaker():
-    return CHATBOT_NAME
+    # 화면에 표시할 발화자 라벨
+    return CHATBOT_NAME if show_name else "Style Loom Assistant"
 
 if show_picture:
     try:
@@ -127,7 +128,7 @@ if show_picture:
 # =========================
 if not st.session_state.greeted_once:
     greet_text = (
-        "Hi, I'm Skyler, Style Loom’s virtual assistant. "
+        "Hi, I'm Style Loom’s virtual assistant. "
         "Style Loom is a start-up fashion brand founded three years ago, "
         "known for its entrepreneurial spirit and innovative approach. "
         "I’m here to help with your shopping."
