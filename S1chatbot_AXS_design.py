@@ -642,6 +642,10 @@ _SIZE_ALPHA_CTX_RE = re.compile(
     r"(?:\bsize\b|\bin\s+(?:a\s+)?size\b|\bsize:\b)\s*(xxs|xs|s|m|l|xl|xxl|x-?large|small|medium|large)\b",
     re.IGNORECASE
 )
+_SIZE_ALPHA_TRAILING_RE = re.compile(
+    r"\b(xxsmall|xxs|xsmall|xs|small|medium|large|xxl|xl|xx-large|x-large|xlarge|m|l|s)\b\s*(?:size|sized)?\b",
+    re.IGNORECASE
+)
 _SIZE_NUM_CTX_RE = re.compile(
     r"(?:\bsize\b|\bin\s+(?:a\s+)?size\b|\bwaist\b|\binseam\b|\blength\b)\s*(\d{1,2}(?:/\d{1,2})?)\b",
     re.IGNORECASE
@@ -683,7 +687,12 @@ def extract_size(text: str) -> Optional[str]:
     if m:
         raw = m.group(1).lower().replace(" ", "")
         return SIZE_NORMALIZE.get(raw, m.group(1))
+    m = _SIZE_ALPHA_TRAILING_RE.search(t)
+    if m:
+        raw = m.group(1).lower().replace(" ", "")
+        return SIZE_NORMALIZE.get(raw, m.group(1))
     return None
+
 
 
 def extract_size_for_availability(text: str, has_active_product: bool = False) -> Optional[str]:
@@ -761,6 +770,13 @@ def _update_availability_state(user_text: str) -> dict:
     return state
 
 
+AVAILABILITY_COLOR_OPTIONS = {
+    "dress": ["white", "black", "navy", "red", "pink", "yellow", "cream"],
+    "top": ["white", "light blue", "navy", "black", "gray"],
+    "bottom": ["black", "navy", "khaki", "gray", "brown"],
+    "outerwear": ["black", "camel", "navy", "olive", "gray"],
+}
+
 def build_availability_stock_reply(user_text: str) -> str:
     state = _update_availability_state(user_text)
     product = state.get("product")
@@ -768,16 +784,27 @@ def build_availability_stock_reply(user_text: str) -> str:
     size = state.get("size")
     t = (user_text or "").lower()
     asks_how_many = any(p in t for p in ["how many", "how much stock", "in stock", "stock left", "left in stock"])
+    asks_colors = any(p in t for p in ["what other colors", "other colors", "what colors", "which colors", "available colors", "color options", "colour options", "what colour"])
 
     if not product:
         return "Yes, we currently have several options available in that category. Would you like to check dresses, tops, bottoms, or outerwear?"
 
     label = PRODUCT_LABELS.get(product, "items")
 
+    if asks_colors:
+        options = AVAILABILITY_COLOR_OPTIONS.get(product, ["black", "white", "navy", "gray"])
+        if color and color in options:
+            others = [c for c in options if c != color]
+            if others:
+                listed = ", ".join(others[:-1]) + (f", and {others[-1]}" if len(others) > 1 else others[0])
+                return f"For {label}, besides {color}, we commonly carry colors such as {listed}. I can also check a particular size if you'd like."
+        listed = ", ".join(options[:-1]) + (f", and {options[-1]}" if len(options) > 1 else options[0])
+        return f"For {label}, we commonly carry colors such as {listed}. I can also check a particular size if you'd like."
+
     if color and size:
         size_text = size if size in {"small", "medium", "large"} else size
         if asks_how_many:
-            return f"It looks like we currently have 5+ {color} {label} available in {size_text}, so stock seems fairly open right now. I can also check another color or size if you'd like."
+            return f"It looks like we currently have 5+ {color} {label} available in {size_text}, so stock seems fairly open right now."
         return f"Yes, it looks like we currently have 5+ {color} {label} available in {size_text}, so stock seems fairly open right now. I can also check another color or size if you'd like."
     if color:
         if asks_how_many:
@@ -791,6 +818,7 @@ def build_availability_stock_reply(user_text: str) -> str:
     if asks_how_many:
         return f"It looks like we currently have several {label} available right now. If you'd like, I can also check a specific color or size."
     return f"Yes, we currently have several {label} available right now. If you'd like, I can also check a specific color or size."
+
 
 def generate_answer(user_text: str, scenario: Optional[str]) -> Tuple[str, str, bool]:
     intent_key = scenario_to_intent(scenario)
@@ -1205,4 +1233,6 @@ if user_text and not st.session_state.ended:
     st.session_state.bot_turns += 1
 
     st.rerun()
+
+
 
